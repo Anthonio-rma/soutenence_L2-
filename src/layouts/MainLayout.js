@@ -12,7 +12,8 @@ export default function MainLayout() {
 
       {/* Contenu principal adaptatif avec transition fluide */}
       <div 
-        className="flex-1 flex flex-col min-w-0 transition-all duration-300"
+        /* CORRECTION ICI : "max-md:!pl-0" écrase le style inline uniquement sur les écrans mobiles */
+        className="flex-1 flex flex-col min-w-0 transition-all duration-300 max-md:!pl-0"
         style={{ paddingLeft: isCollapsed ? '76px' : '260px' }}
       >
         <Outlet />

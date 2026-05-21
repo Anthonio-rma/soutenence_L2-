@@ -1,42 +1,48 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router'; // React Router v7
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import './App.css';
 
-// Importations des pages de base
+// Importations des pages
 import LandingPage from './pages/Landing_Page';
 import LoginRegisterPage from './pages/login_et_registe_page';
 import MainLayout from './layouts/MainLayout';
 import PageUtilisateur from './pages/page_utilisateur';
 import PageAlert from './pages/alerte_trafic';
-
-// 1. VÉRIFIE BIEN CET IMPORT (Le nom du fichier est suivi_gps.js)
-import SuiviGps from './pages/suivi_gps'; 
+import Pageconfig from './pages/configuration';
+import SuiviGps from './pages/suivi_gps';
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Pages publiques */}
+        {/* 1. Routes Publiques */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginRegisterPage />} />
 
-        {/* Espace Connecté TAXI-BE */}
+        {/* 2. Routes Protégées / Dashboard (Imbriquées dans MainLayout) */}
+        {/* Note : Toutes les routes ici auront une URL de type /dashboard/... */}
         <Route path="/dashboard" element={<MainLayout />}>
-          {/* Quand on est sur /dashboard -> on affiche la vue d'ensemble */}
+          
+          {/* Index : correspond à /dashboard */}
           <Route index element={<PageUtilisateur />} />
 
-          {/* 2. C'EST CETTE LIGNE QUI FAIT LA MAGIE POUR /dashboard/carte-temps-reel */}
+          {/* Sous-pages */}
           <Route path="carte-temps-reel" element={<SuiviGps />} />
           <Route path="alert_trafic" element={<PageAlert />} />
-
-          {/* Les autres sous-pages de ton menu */}
+          <Route path="configuration" element={<Pageconfig />} />
+          
+          {/* Autres sections */}
           <Route path="lignes" element={<div className="p-4">Lignes & Horaires</div>} />
           <Route path="arrets" element={<div className="p-4">Arrêts de Bus</div>} />
           <Route path="vehicules" element={<div className="p-4">Flotte Véhicules</div>} />
-          <Route path="alertes" element={<div className="p-4">Alertes Trafic</div>} />
           <Route path="analyses" element={<div className="p-4">Flux & Mobilité</div>} />
-          <Route path="configuration" element={<div className="p-4">Configuration</div>} />
+
+          {/* Redirection si un utilisateur va sur un chemin inexistant sous /dashboard */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
+
+        {/* Catch-all : si l'URL ne correspond à rien du tout */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
