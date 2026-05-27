@@ -45,7 +45,8 @@ export default function AuthInterface({ onBack }) {
       const { user } = response.data;
       
       // On sauvegarde dans le localStorage pour que la Sidebar puisse le lire
-      localStorage.setItem('user', JSON.stringify({
+     localStorage.setItem('user', JSON.stringify({
+        id: user.id,            // <--- INDISPENSABLE
         nom: user.nom_complet,
         role: user.role
       }));
@@ -153,6 +154,7 @@ export default function AuthInterface({ onBack }) {
             token: credentialResponse.credential
           });
           localStorage.setItem('user', JSON.stringify({
+            id: response.data.user.id,
             nom: response.data.user.nom_complet,
             role: response.data.user.role
           }));

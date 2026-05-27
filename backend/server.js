@@ -5,17 +5,19 @@ const helmet = require('helmet');
 const morgan = require('morgan'); // Journalisation des requêtes
 const rateLimit = require('express-rate-limit'); // Protection contre le brute-force
 const authRoutes = require('./routes/authRoutes');
+const userRoutes = require('./routes/userRoutes');
 
 const app = express();
+app.set('trust proxy', 1);
 
 // 1. Middlewares de sécurité de base
 app.use(helmet()); 
 app.use(express.json({ limit: '10kb' })); // Limite la taille du body JSON
 
-// 2. Configuration CORS
+// 2. Mettez à jour CORS pour inclure PUT (pour l'enregistrement des modifs)
 app.use(cors({
     origin: process.env.CLIENT_URL || "http://localhost:3000",
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "PUT"], // Ajoutez PUT ici
     credentials: true
 }));
 
@@ -27,6 +29,8 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
+
+
 // 4. Logging : Affiche les requêtes dans la console (en dev uniquement)
 if (process.env.NODE_ENV !== 'production') {
     app.use(morgan('dev'));
@@ -34,6 +38,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 // 5. Routes
 app.use('/api/auth', authRoutes);
+app.use('/api', userRoutes);
 
 // 6. Gestion 404
 app.use((req, res, next) => {
