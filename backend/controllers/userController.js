@@ -6,24 +6,43 @@ const { promisify } = require('util');
 const query = promisify(db.query).bind(db);
 
 // 1. Récupérer UN utilisateur par son ID
-exports.getUserById = async (req, res) => {
-    try {
-        const userId = req.params.id;
-        // RETIRÉ "avatar" car la colonne n'existe pas
-        const sql = `SELECT id, nom_complet, email, role, telephone, pays, ville, code_postal, identifiant_fiscal 
-                     FROM users WHERE id = ?`;
-        
-        const results = await query(sql, [userId]);
+// 1. Récupérer UN utilisateur par son ID
+    exports.getUserById = async (req, res) => {
+        try {
+            const userId = req.params.id;
+            
+            // AJOUT DE "avatar_url" DANS LE SELECT
+            const sql = `SELECT id, nom_complet, email, role, telephone, pays, ville, code_postal, identifiant_fiscal, avatar_url 
+                        FROM users WHERE id = ?`;
+            
+            const results = await query(sql, [userId]);
 
-        if (results.length === 0) {
-            return res.status(404).json({ error: "Utilisateur non trouvé." });
+            if (results.length === 0) {
+                return res.status(404).json({ error: "Utilisateur non trouvé." });
+            }
+
+            res.status(200).json(results[0]);
+        } catch (err) {
+            console.error("Erreur lors de la récupération :", err);
+            res.status(500).json({ error: "Erreur serveur interne." });
         }
+    };
+exports.uploadAvatar = (req, res) => {
+    if (!req.file) return res.status(400).json({ error: "Pas de fichier" });
 
-        res.status(200).json(results[0]);
-    } catch (err) {
-        console.error("Erreur lors de la récupération :", err);
-        res.status(500).json({ error: "Erreur serveur interne." });
-    }
+    const imageUrl = `http://localhost:5000/uploads/${req.file.filename}`;
+    const userId = req.params.id;
+
+    // Utilisation de la variable 'db' importée
+    const sql = "UPDATE users SET avatar_url = ? WHERE id = ?";
+    
+    db.query(sql, [imageUrl, userId], (err, result) => {
+        if (err) {
+            console.error("Erreur SQL :", err);
+            return res.status(500).json({ error: "Erreur serveur BDD" });
+        }
+        res.json({ url: imageUrl });
+    });
 };
 
 // 2. Mettre à jour l'utilisateur

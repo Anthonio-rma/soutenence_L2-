@@ -5,7 +5,7 @@ import { Link, useLocation } from 'react-router';
 import { 
   LayoutDashboard, Map, Route, Navigation, Users, 
   ChevronDown, ChevronUp, Bell, BarChart3, ShieldCheck, 
-  Moon, Settings, LogOut, MoreHorizontal, Bus, Menu, X
+  Moon, Settings, LogOut, MoreHorizontal, Bus, Menu, X, Download
 } from 'lucide-react';
 
 export default function Sidebar({ isCollapsed, setIsCollapsed }) {
@@ -213,6 +213,12 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
         </div>
 
         <div className="border-t border-gray-100 pt-3 flex flex-col gap-1 px-1 overflow-hidden flex-shrink-0">
+          {/* Nouveau bouton ajouté ici */}
+          <button className={`flex items-center gap-3 rounded-xl text-sm font-medium text-gray-500 hover:bg-black/[0.04] hover:text-black transition-all flex-shrink-0 ${(isCollapsed && !isMobile) ? 'justify-center p-2.5' : 'px-3 py-2'}`}>
+            <Download className="w-4 h-4 flex-shrink-0" />
+            <span className={`transition-all duration-300 whitespace-nowrap ${(isCollapsed && !isMobile) ? 'opacity-0 scale-95 w-0 pointer-events-none hidden' : 'opacity-100 scale-100 inline-block'}`}>Télécharger app</span>
+          </button>
+
           <div className={`flex items-center rounded-xl text-sm font-medium text-gray-500 ${(isCollapsed && !isMobile) ? 'justify-center p-2.5' : 'justify-between px-3 py-2'}`}>
             <div className="flex items-center gap-3 flex-shrink-0">
               <Moon className="w-4 h-4 flex-shrink-0" />

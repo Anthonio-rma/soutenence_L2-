@@ -57,60 +57,81 @@ export default function AccountSettings() {
   const [isEditing, setIsEditing] = useState({ header: false, personal: false, address: false, password: false });
   const [is2FAActive, setIs2FAActive] = useState(true);
 
-  const handleFile = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => setHeader(prev => ({ ...prev, avatar: reader.result }));
-      reader.readAsDataURL(file);
+  const handleFile = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const userStored = JSON.parse(localStorage.getItem('user'));
+  const formData = new FormData();
+  formData.append('avatar', file); // 'avatar' est le nom du champ pour multer
+
+    try {
+      // Appel à votre nouvelle route serveur
+      const response = await fetch(`http://localhost:5000/api/users/${userStored.id}/avatar`, {
+        method: 'POST',
+        body: formData
+      });
+      
+      const result = await response.json();
+      if (response.ok) {
+        // On met à jour l'état avec l'URL renvoyée par le serveur
+        // On ajoute un timestamp (t=) pour forcer le rafraîchissement de l'image (bypass cache)
+        setHeader(prev => ({ ...prev, avatar: `${result.url}?t=${Date.now()}` }));
+      }
+    } catch (err) {
+      console.error("Erreur lors de l'upload:", err);
+      alert("Erreur lors de la sauvegarde de l'avatar.");
     }
   };
 
- useEffect(() => {
-    const fetchUserData = async () => {
-      const userStored = JSON.parse(localStorage.getItem('user'));
-      if (!userStored || !userStored.id) return;
+  useEffect(() => {
+  const fetchUserData = async () => {
+    const userStored = JSON.parse(localStorage.getItem('user'));
+    if (!userStored || !userStored.id) return;
 
-      try {
-        const response = await fetch(`http://localhost:5000/api/users/${userStored.id}`);
-        if (!response.ok) throw new Error("Erreur lors de la récupération des données");
-        
-        const data = await response.json();
-        
-        // Débogage : vérifiez ces données dans votre console F12
-        console.log("Données reçues de l'API :", data); 
-        
-        // 1. Mise à jour du header
-        setHeader({ 
-          fullName: data.nom_complet || '', 
-          role: data.role || '', 
-          avatar: data.avatar || '' 
-        });
-        
-        // 2. Mise à jour des informations personnelles
-        // On tente de séparer le nom complet en deux si possible
-        const names = (data.nom_complet || '').split(' ');
-        setPersonal({ 
-          email: data.email || '', 
-          firstName: names[0] || '', 
-          lastName: names.slice(1).join(' ') || '',
-          phone: data.telephone || '' 
-        });
-
-        // 3. Mise à jour de l'adresse (avec les noms de colonnes SQL exacts)
-        setAddress({
-          country: data.pays || '',
-          city: data.ville || '',
-          postalCode: data.code_postal || '',
-          taxId: data.identifiant_fiscal || ''
-        });
-
-      } catch (err) {
-        console.error("Erreur chargement:", err);
+    try {
+      const response = await fetch(`http://localhost:5000/api/users/${userStored.id}`);
+      if (!response.ok) throw new Error("Erreur serveur");
+      
+      const data = await response.json();
+      
+      // Reconstruction sécurisée de l'URL
+      let avatarUrl = '';
+      if (data.avatar_url) {
+        // Si l'URL ne contient pas http, on ajoute le domaine du serveur
+        const baseUrl = data.avatar_url.startsWith('http') ? '' : 'http://localhost:5000';
+        // On ajoute le timestamp pour forcer le rafraîchissement
+        avatarUrl = `${baseUrl}${data.avatar_url}?t=${Date.now()}`;
       }
-    };
-    fetchUserData();
-  }, []);
+      
+      setHeader({ 
+        fullName: data.nom_complet || '', 
+        role: data.role || '', 
+        avatar: avatarUrl 
+      });
+      
+      const names = (data.nom_complet || '').split(' ');
+      setPersonal({ 
+        email: data.email || '', 
+        firstName: names[0] || '', 
+        lastName: names.slice(1).join(' ') || '',
+        phone: data.telephone || '' 
+      });
+
+      setAddress({
+        country: data.pays || '',
+        city: data.ville || '',
+        postalCode: data.code_postal || '',
+        taxId: data.identifiant_fiscal || ''
+      });
+
+    } catch (err) {
+      console.error("Erreur chargement:", err);
+    }
+  };
+  
+  fetchUserData();
+}, []);
 
   const handleSave = async (sectionKey) => {
     const userStored = JSON.parse(localStorage.getItem('user'));
@@ -119,10 +140,11 @@ export default function AccountSettings() {
         alert("Erreur: Utilisateur non connecté.");
         return;
     }
-
     // On s'assure d'envoyer l'objet complet avec les états actuels
     const payload = {
-        nom_complet: header.fullName,
+        nom_complet: `${personal.firstName} ${personal.lastName}`.trim(),
+        prenom: personal.firstName,
+        nom: personal.lastName,
         email: personal.email,
         telephone: personal.phone,
         pays: address.country,
@@ -161,12 +183,37 @@ export default function AccountSettings() {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
           <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div className="flex items-center gap-5">
-              <div className="relative group">
-                {header.avatar && <img src={header.avatar} className="w-20 h-20 rounded-2xl object-cover" alt="Avatar" />}
-                <button onClick={() => fileInputRef.current?.click()} className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity">
+              {/* Conteneur unique pour l'avatar, le bouton et l'input */}
+              <div className="relative group shrink-0">
+                {/* Affichage de l'avatar ou de l'icône par défaut */}
+                {header.avatar ? (
+                  <img 
+                    src={header.avatar} 
+                    className="w-20 h-20 rounded-2xl object-cover border border-slate-200" 
+                    alt="Avatar" 
+                  />
+                ) : (
+                  <div className="w-20 h-20 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
+                    <UserCircleIcon className="w-12 h-12" />
+                  </div>
+                )}
+
+                {/* Bouton pour déclencher l'upload */}
+                <button 
+                  onClick={() => fileInputRef.current?.click()} 
+                  className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"
+                >
                   <CameraIcon className="w-6 h-6 text-white" />
                 </button>
-                <input type="file" ref={fileInputRef} onChange={handleFile} className="hidden" accept="image/*" />
+
+                {/* Input de fichier caché */}
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFile} 
+                  className="hidden" 
+                  accept="image/*" 
+                />
               </div>
               <div className="space-y-1">
                 {isEditing.header ? (

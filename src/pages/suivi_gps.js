@@ -123,114 +123,160 @@ export default function SuiviGps() {
   const animationRef = useRef();
   const SEGMENT_DURATION = 2500;
 
-  const [taxiBeList] = useState([
-    { id: "2930", chauffeur: "Charles Davies", ligne: "119", statut: "delayed", retard: "12 MIN DE RETARD", Cooperative: "Taxis-be", route: ROUTE_119, colors: { primary: '#ef4444', secondary: '#ffffff' }, depart: "Ankatso", destination: "67Ha Centre", arrets: ["Ankatso", "Ambanidia", "Analakely", "67Ha"], trafic: "dense", pointEmbouteillage: "Analakely" },
-    { id: "8399", chauffeur: "Martijn Dragonjer", ligne: "163", statut: "on-time", Cooperative: "Mirindra", route: ROUTE_163, colors: { primary: '#3b82f6', secondary: '#eff6ff' }, depart: "Ivato Aéroport", destination: "Analakely Esplanade", arrets: ["Ivato", "Talatamaty", "Ankazomanga", "Analakely"], trafic: "modéré", pointEmbouteillage: "Ankazomanga" },
-    { id: "2739", chauffeur: "Em Assinder", ligne: "194", statut: "on-time", Cooperative: "MA-FA", route: ROUTE_194, colors: { primary: '#16a34a', secondary: '#facc15' }, depart: "Itaosy Terminus", destination: "Ankorondrano", arrets: ["Itaosy", "Ampasika", "Ampefiloha", "Analakely"], trafic: "dense", pointEmbouteillage: "Ankorondrano" },
-    { id: "8304", chauffeur: "Sofietje Boksem", ligne: "137", statut: "on-time", Cooperative: "Kofia", route: ROUTE_137, colors: { primary: '#f97316', secondary: '#ffffff' }, depart: "Vasacos Lalana", destination: "Tanjombato", arrets: ["Vasacos", "Isotry", "Anosy", "Tanjombato"], trafic: "fluide", pointEmbouteillage: "Aucun" },
-    { id: "7649", chauffeur: "Sofietje Boksem", ligne: "154", statut: "on-time", Cooperative: "Trans-7", route: ROUTE_154, colors: { primary: '#a855f7', secondary: '#ffffff' }, depart: "Mahamasina Stade", destination: "Ampandrianomby", arrets: ["Mahamasina", "Anosy", "Mausolée", "Ampandrianomby"], trafic: "modéré", pointEmbouteillage: "Anosy" }
-  ]);
+  const [taxiBeList, setTaxiBeList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
 
-  // Déterminer les bus à proximité
+  
+
+  useEffect(() => {
+    // Cette fonction est auto-suffisante
+    const fetchBuses = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch('http://localhost:5000/api/transit');
+        if (!response.ok) throw new Error("Erreur réseau");
+        const data = await response.json();
+        setTaxiBeList(data);
+      } catch (err) {
+        console.error("Erreur chargement :", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBuses();
+  }, []); // Pas de dépendances, pas de risques
+  
+
+  useEffect(() => {
+    setActiveRoute(null);
+    setAnimatedBusPos(null);
+    console.log("Système réinitialisé : aucun itinéraire actif au démarrage.");
+  }, []);
+
   useEffect(() => {
     let referenceLat = TANA_CENTER[0];
     let referenceLng = TANA_CENTER[1];
 
     if (departInput) {
-      const matchingBus = taxiBeList.find(b => b.depart.toLowerCase().includes(departInput.toLowerCase()));
-      if (matchingBus) {
+      const matchingBus = taxiBeList.find(b => 
+        b.depart && b.depart.toLowerCase().includes(departInput.toLowerCase())
+      );
+      
+      // PROTECTION : On vérifie que 'matchingBus' et 'matchingBus.route' existent
+      // et que 'matchingBus.route' contient au moins un élément
+      if (matchingBus && Array.isArray(matchingBus.route) && matchingBus.route.length > 0) {
         referenceLat = matchingBus.route[0][0];
         referenceLng = matchingBus.route[0][1];
       }
     }
 
     const filtered = taxiBeList.filter(bus => {
-      return bus.route.some(coord => calculateDistance(referenceLat, referenceLng, coord[0], coord[1]) <= 1.5);
+      // PROTECTION : On vérifie que le bus a bien une route avant de faire le some()
+      return bus.route && Array.isArray(bus.route) && bus.route.some(coord => 
+        calculateDistance(referenceLat, referenceLng, coord[0], coord[1]) <= 1.5
+      );
     });
     setNearbyBuses(filtered);
   }, [departInput, taxiBeList]);
-
   useEffect(() => {
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
   }, []);
 
-  const handleSearchRoute = () => {
-    if (!departInput || !terminusInput) return;
+  const handleSearchRoute = async () => {
+    // 1. Validation immédiate
+    const departVal = departInput?.trim();
+    const terminusVal = terminusInput?.trim();
 
-    if (travelMode === 'foot') {
-      const startBus = taxiBeList.find(b => b.arrets.some(a => a.toLowerCase().includes(departInput.toLowerCase())));
-      const endBus = taxiBeList.find(b => b.arrets.some(a => a.toLowerCase().includes(terminusInput.toLowerCase())));
-      
-      const startCoord = startBus ? startBus.route[0] : TANA_CENTER;
-      const endCoord = endBus ? endBus.route[endBus.route.length - 1] : [-18.9120, 47.5300];
-
-      const footRouteObj = {
-        id: "foot-path",
-        ligne: "À pied",
-        chauffeur: "Vous",
-        Cooperative: "Marche à pied",
-        route: [startCoord, endCoord],
-        colors: { primary: '#2563eb', secondary: '#ffffff' },
-        depart: departInput,
-        destination: terminusInput,
-        arrets: [departInput, terminusInput],
-        trafic: "fluide",
-        pointEmbouteillage: "Aucun"
-      };
-
-      setActiveRoute(footRouteObj);
-      setMapBounds(footRouteObj.route);
-      setAnimatedBusPos(startCoord);
+    if (!departVal || !terminusVal) {
+      alert("Veuillez remplir les champs de départ et de destination.");
       return;
     }
 
-    const foundBus = taxiBeList.find(bus => 
-      bus.arrets.some(a => a.toLowerCase().includes(departInput.toLowerCase())) &&
-      bus.arrets.some(a => a.toLowerCase().includes(terminusInput.toLowerCase()))
-    );
+    // 2. Nettoyage TOTAL avant toute nouvelle recherche
+    if (animationRef.current) cancelAnimationFrame(animationRef.current);
+    setActiveRoute(null);
+    setAnimatedBusPos(null);
+    setMapBounds(null);
 
-    if (foundBus) {
-      setActiveRoute(foundBus);
-      setMapBounds(foundBus.route);
-      
-      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+    try {
+      let result = null;
 
-      let currentIdx = 0;
-      let startTime = performance.now();
+      // 3. Logique de transport
+      if (travelMode === 'foot') {
+        result = {
+          id: "foot-path",
+          ligne: "À pied",
+          chauffeur: "Vous",
+          Cooperative: "Marche à pied",
+          route: [TANA_CENTER, [-18.9120, 47.5300]],
+          colors: { primary: '#2563eb', secondary: '#ffffff' },
+          depart: departVal,
+          destination: terminusVal,
+          arrets: [departVal, terminusVal],
+          trafic: "fluide",
+          pointEmbouteillage: "Aucun"
+        };
+      } else {
+        const response = await fetch('http://localhost:5000/api/transit/calculer-itineraire', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ depart: departVal, destination: terminusVal })
+        });
 
-      const animateMovement = (now) => {
-        const elapsed = now - startTime;
-        const progress = Math.min(elapsed / SEGMENT_DURATION, 1);
+        if (!response.ok) throw new Error("Aucun itinéraire trouvé.");
+        result = await response.json();
+      }
 
-        const startNode = foundBus.route[currentIdx];
-        let nextIdx = currentIdx + 1;
+      // 4. Lancement de l'animation si le résultat est valide
+      if (result?.route?.length > 0) {
+        setActiveRoute(result);
+        setMapBounds(result.route);
+        setAnimatedBusPos(result.route[0]);
+
+        let currentIdx = 0;
+        let startTime = performance.now();
+
+        const animateMovement = (now) => {
+          const elapsed = now - startTime;
+          const progress = Math.min(elapsed / SEGMENT_DURATION, 1);
+          
+          const startNode = result.route[currentIdx];
+          const nextIdx = (currentIdx + 1) % result.route.length;
+          const endNode = result.route[nextIdx];
+
+          if (startNode && endNode) {
+            const lat = startNode[0] + (endNode[0] - startNode[0]) * progress;
+            const lng = startNode[1] + (endNode[1] - startNode[1]) * progress;
+            setAnimatedBusPos([lat, lng]);
+          }
+
+          if (elapsed >= SEGMENT_DURATION) {
+            // Si on arrive au bout, on boucle ou on arrête selon votre besoin
+            if (nextIdx === 0) { 
+                animationRef.current = null;
+                return; 
+            }
+            startTime = performance.now();
+            currentIdx = nextIdx;
+          }
+          animationRef.current = requestAnimationFrame(animateMovement);
+        };
         
-        if (nextIdx >= foundBus.route.length) {
-          currentIdx = 0;
-          nextIdx = 1;
-        }
-        
-        const endNode = foundBus.route[nextIdx];
-
-        const lat = startNode[0] + (endNode[0] - startNode[0]) * progress;
-        const lng = startNode[1] + (endNode[1] - startNode[1]) * progress;
-        setAnimatedBusPos([lat, lng]);
-
-        if (elapsed >= SEGMENT_DURATION) {
-          startTime = performance.now();
-          currentIdx = nextIdx;
-        }
-
         animationRef.current = requestAnimationFrame(animateMovement);
-      };
-
-      animationRef.current = requestAnimationFrame(animateMovement);
-    } else {
-      alert("Aucune ligne directe trouvée entre ces deux arrêts.");
+      } else {
+        throw new Error("Données de route invalides.");
+      }
+    } catch (error) {
+      console.error("Erreur de recherche :", error);
+      alert("Impossible de calculer l'itinéraire.");
+      // Nettoyage en cas d'erreur
       setActiveRoute(null);
       setAnimatedBusPos(null);
+      setMapBounds(null);
     }
   };
 
@@ -345,14 +391,15 @@ export default function SuiviGps() {
                   </div>
 
                   {/* Alerte Embouteillage Urbain */}
-                  {travelMode === 'bus' && activeRoute.trafic === 'dense' && (
-                    <div className="mb-3 p-2 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2 text-amber-800 animate-pulse-subtle">
-                      <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                      <div className="text-[10px] font-medium">
-                        <b>Trafic dense :</b> Embouteillage critique signalé au niveau de <span className="underline font-bold">{activeRoute.pointEmbouteillage}</span>.
+                  {travelMode === 'bus' && 
+                    activeRoute && 
+                    Array.isArray(activeRoute.arrets) && 
+                    activeRoute.arrets.length > 0 ? (
+                      <div className="text-[11px] text-gray-600">
+                        <b className="text-gray-800">Via :</b> {activeRoute.arrets.join(' → ')}
                       </div>
-                    </div>
-                  )}
+                    ) : null
+                  }
 
                   <div className="space-y-2 border-l border-gray-200 pl-3 relative ml-1">
                     <div className="text-[11px] text-gray-600"><b className="text-gray-800">Départ :</b> {activeRoute.depart}</div>
@@ -362,17 +409,8 @@ export default function SuiviGps() {
 
                   {/* Profils associés si transport en commun */}
                   {travelMode === 'bus' && (
-                    <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-indigo-100 font-bold text-xs text-indigo-700 flex items-center justify-center shadow-sm">
-                          {activeRoute.chauffeur ? activeRoute.chauffeur.split(' ').map(n => n[0]).join('') : 'CH'}
-                        </div>
-                        <span className="text-xs font-bold text-gray-700">{activeRoute.chauffeur}</span>
-                      </div>
-                      <div className="flex gap-1.5">
-                        <button className="p-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 active:scale-95 transition-all shadow-sm"><Phone className="w-3 h-3" /></button>
-                        <button className="p-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 active:scale-95 transition-all shadow-sm"><MessageSquare className="w-3 h-3" /></button>
-                      </div>
+                    <div className="text-[11px] text-gray-600">
+                      <b className="text-gray-800">Via :</b> {activeRoute.arrets?.slice(1, -1).join(' → ') || "Aucun arrêt intermédiaire"}
                     </div>
                   )}
                 </div>
@@ -414,6 +452,7 @@ export default function SuiviGps() {
       {/* ================= ZONE DE LA CARTE INTERACTIVE ================= */}
       <div className="flex-1 h-[55vh] md:h-full relative z-[10] min-w-0 isolation-auto">
         <MapContainer 
+          key={activeRoute ? activeRoute.id : 'empty'}
           center={TANA_CENTER} 
           zoom={13} 
           zoomControl={false} 
