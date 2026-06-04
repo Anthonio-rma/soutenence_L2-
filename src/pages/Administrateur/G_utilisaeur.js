@@ -52,6 +52,31 @@ function initials(p, n) {
   return ((p?.[0] ?? "") + (n?.[0] ?? "")).toUpperCase();
 }
 
+function normalizeRole(role) {
+  const raw = String(role ?? "").trim().toLowerCase();
+  if (raw === "admin" || raw === "administrateur") return "administrateur";
+  if (raw === "operateur" || raw === "opérateur") return "opérateur";
+  return "utilisateur";
+}
+
+function normalizeUser(user) {
+  const fullName = user.nom_complet || `${user.prenom ?? ""} ${user.nom ?? ""}`.trim();
+  const [prenom, ...rest] = fullName.split(" ");
+  const roleKey = normalizeRole(user.role);
+  return {
+    ...user,
+    prenom: user.prenom ?? prenom ?? "",
+    nom: user.nom ?? rest.join(" ") ?? "",
+    role: roleKey,
+    coop: user.coop ?? "Indéfini",
+    statut: user.statut ?? "actif",
+    date: user.date ?? "N/A",
+    activite: user.activite ?? "N/A",
+    color: user.color ?? ROLE_COLOR[roleKey].color,
+    bg: user.bg ?? ROLE_COLOR[roleKey].bg,
+  };
+}
+
 function Avatar({ prenom, nom, color, bg, size = 36 }) {
   return (
     <div style={{
@@ -67,7 +92,8 @@ function Avatar({ prenom, nom, color, bg, size = 36 }) {
 }
 
 function RoleBadge({ role }) {
-  const m = ROLE_META[role] ?? ROLE_META["utilisateur"];
+  const normalizedRole = normalizeRole(role);
+  const m = ROLE_META[normalizedRole] ?? ROLE_META["utilisateur"];
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 5,
@@ -345,6 +371,7 @@ function ModalModifier({ user, onSave, onCancel }) {
 
 export default function PageUtilisateurs() {
   const [users, setUsers]       = useState(INITIAL_USERS);
+  const [loading, setLoading]   = useState(true);
   const [filter, setFilter]     = useState("tous");
   const [search, setSearch]     = useState("");
   const [selected, setSelected] = useState(null);
@@ -352,6 +379,33 @@ export default function PageUtilisateurs() {
   const [toDelete, setToDelete] = useState(null);   // user à supprimer
   const [toEdit, setToEdit]     = useState(null);   // user à modifier
   const PER_PAGE = 8;
+
+  useEffect(() => { setPage(1); }, [filter, search]);
+
+  const API_URL = "http://localhost:5000/api/users";
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(API_URL, { signal: controller.signal })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        const normalized = Array.isArray(data) ? data.map(normalizeUser) : [];
+        setUsers(normalized.length ? normalized : INITIAL_USERS);
+        setLoading(false);
+      })
+      .catch((err) => {
+        if (err.name !== "AbortError") {
+          console.error("Erreur de connexion au backend :", err);
+          setUsers(INITIAL_USERS);
+          setLoading(false);
+        }
+      });
+
+    return () => controller.abort();
+  }, []);
 
   const filtered = users.filter(u => {
     if (filter === "suspendu") return u.statut === "suspendu";
@@ -369,23 +423,47 @@ export default function PageUtilisateurs() {
   useEffect(() => { setPage(1); }, [filter, search]);
 
   // Supprimer
-  const handleDeleteConfirm = () => {
-    setUsers(prev => prev.filter(u => u.id !== toDelete.id));
-    if (selected?.id === toDelete.id) setSelected(null);
-    setToDelete(null);
+  const handleDeleteConfirm = async () => {
+    try {
+      const response = await fetch(`${API_URL}/${toDelete.id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error(`Suppression échouée (${response.status})`);
+      setUsers(prev => prev.filter(u => u.id !== toDelete.id));
+      if (selected?.id === toDelete.id) setSelected(null);
+    } catch (error) {
+      console.error("Erreur suppression utilisateur :", error);
+    } finally {
+      setToDelete(null);
+    }
   };
 
   // Modifier
-  const handleEditSave = (updated) => {
-    setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
-    if (selected?.id === updated.id) setSelected(updated);
-    setToEdit(null);
+  const handleEditSave = async (updated) => {
+    try {
+      const body = {
+        nom_complet: `${updated.prenom} ${updated.nom}`.trim(),
+        email: updated.email,
+        role: updated.role,
+      };
+      const response = await fetch(`${API_URL}/${updated.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) throw new Error(`Modification échouée (${response.status})`);
+      setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
+      if (selected?.id === updated.id) setSelected(updated);
+    } catch (error) {
+      console.error("Erreur modification utilisateur :", error);
+    } finally {
+      setToEdit(null);
+    }
   };
 
   const totalAdmins     = users.filter(u => u.role === "administrateur").length;
   const totalOperateurs = users.filter(u => u.role === "opérateur").length;
   const totalActifs     = users.filter(u => u.statut === "actif").length;
   
+  if (loading) return <div style={{ padding: 20 }}>Chargement des utilisateurs...</div>;
 
   return (
     <>

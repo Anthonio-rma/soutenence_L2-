@@ -5,7 +5,8 @@ import { Link, useLocation } from 'react-router';
 import { 
   LayoutDashboard, Map, Route, Navigation, Users, 
   ChevronDown, ChevronUp, Bell, BarChart3, ShieldCheck, 
-  Moon, Settings, LogOut, MoreHorizontal, Bus, Menu, X, Download
+  Moon, Settings, LogOut, MoreHorizontal, Bus, Menu, X, Download,
+  UserCog, Waypoints, CarFront, Satellite, MonitorCog, Wrench
 } from 'lucide-react';
 
 export default function Sidebar({ isCollapsed, setIsCollapsed }) {
@@ -33,8 +34,20 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
     }
   }, []);
 
+  // Visibilité des menus selon le rôle
+  // admin    → tout visible
+  // operateur → Vue d'ensemble masqué, Gestion Réseau visible
+  // utilisateur → Vue d'ensemble masqué, Gestion Réseau masqué
+  const isAdmin = user.role === 'admin';
+  const isOperateur = user.role === 'operateur';
+  const isUtilisateur = user.role === 'utilisateur';
+
+  const showVueEnsemble = isAdmin;
+  const showGestionReseau = isAdmin || isOperateur;
+
   // Gestion de l'ouverture des sous-menus spécifiques au transport
   const [openMenus, setOpenMenus] = useState({
+    vueEnsemble: false,
     reseau: true,
     securite: false,
   });
@@ -98,6 +111,16 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
       transition: { type: 'spring', stiffness: 350, damping: 35 }
     })
   };
+
+  // Sous-menus administrateur pour Vue d'ensemble (sans icônes)
+  const adminSubMenus = [
+    { to: '/dashboard/admin/lignes', label: 'Tableau de Bord' },
+    { to: '/dashboard/gestion_utilisataeur', label: 'Gestion Utilisateurs' },
+    { to: '/dashboard/admin/lignes', label: 'Lignes de Transport' },
+    { to: '/dashboard/admin/vehicules-supervision', label: 'Supervision Véhicules' },
+    { to: '/dashboard/admin/gps', label: 'Contrôle Données GPS' },
+    { to: '/dashboard/admin/maintenance', label: 'Maintenance Système' },
+  ];
 
   return (
     <>
@@ -167,35 +190,79 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
           </div>
 
           <nav className="flex flex-col gap-1 px-1">
-            <Link to="/dashboard" onClick={handleNavigation} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all flex-shrink-0 ${isActive('/dashboard') ? 'bg-indigo-50 text-indigo-600 shadow-sm shadow-indigo-100/50' : 'text-gray-500 hover:bg-black/[0.04] hover:text-black'} ${(isCollapsed && !isMobile) ? 'justify-center' : ''} ${isMobile ? 'md:flex' : ''}`}>
-              <LayoutDashboard className="w-4 h-4 flex-shrink-0" />
-              <span className={`transition-all duration-300 whitespace-nowrap ${(isCollapsed && !isMobile) ? 'opacity-0 scale-95 w-0 pointer-events-none hidden' : 'opacity-100 scale-100 inline-block'}`}>Vue d'ensemble</span>
-            </Link>
+
+            {/* Vue d'ensemble avec sous-menu Administrateur — visible uniquement pour admin */}
+            {showVueEnsemble && (
+              <div className="flex flex-col">
+                <button
+                  onClick={() => toggleMenu('vueEnsemble')}
+                  className={`w-full flex items-center rounded-xl text-sm font-medium transition-all flex-shrink-0 ${
+                    isActive('/dashboard') ? 'bg-indigo-50 text-indigo-600 shadow-sm shadow-indigo-100/50' : 'text-gray-500 hover:bg-black/[0.04] hover:text-black'
+                  } ${(isCollapsed && !isMobile) ? 'justify-center p-2.5' : 'justify-between px-3 py-2.5'}`}
+                >
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <LayoutDashboard className="w-4 h-4 flex-shrink-0" />
+                    <span className={`transition-all duration-300 whitespace-nowrap ${(isCollapsed && !isMobile) ? 'opacity-0 scale-95 w-0 pointer-events-none hidden' : 'opacity-100 scale-100 inline-block'}`}>
+                      Vue d'ensemble
+                    </span>
+                  </div>
+                  {(!isCollapsed || isMobile) && (
+                    openMenus.vueEnsemble
+                      ? <ChevronUp className="w-3.5 h-3.5 flex-shrink-0 transition-transform duration-200" />
+                      : <ChevronDown className="w-3.5 h-3.5 flex-shrink-0 transition-transform duration-200" />
+                  )}
+                </button>
+
+                <AnimatePresence initial={false}>
+                  {openMenus.vueEnsemble && (!isCollapsed || isMobile) && (
+                    <motion.div
+                      variants={dropdownVariants}
+                      initial="hidden"
+                      animate="visible"
+                      exit="hidden"
+                      className="pl-10 flex flex-col gap-1 overflow-hidden border-l border-gray-100 ml-5"
+                    >
+                      {adminSubMenus.map(({ to, label }) => (
+                        <Link
+                          key={to}
+                          to={to}
+                          onClick={handleNavigation}
+                          className={`text-xs py-1.5 transition-colors ${isActive(to) ? 'text-indigo-600 font-semibold' : 'text-gray-500 hover:text-black'}`}
+                        >
+                          {label}
+                        </Link>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
 
             <Link to="/dashboard/carte-temps-reel" onClick={handleNavigation} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all flex-shrink-0 ${isActive('/dashboard/carte-temps-reel') ? 'bg-indigo-50 text-indigo-600 shadow-sm shadow-indigo-100/50' : 'text-gray-500 hover:bg-black/[0.04] hover:text-black'} ${(isCollapsed && !isMobile) ? 'justify-center' : ''} ${isMobile ? 'md:flex' : ''}`}>
               <Map className="w-4 h-4 flex-shrink-0" />
               <span className={`transition-all duration-300 whitespace-nowrap ${(isCollapsed && !isMobile) ? 'opacity-0 scale-95 w-0 pointer-events-none hidden' : 'opacity-100 scale-100 inline-block'}`}>Suivi GPS Live</span>
             </Link>
 
-            <div className="flex flex-col">
-              <button onClick={() => toggleMenu('reseau')} className={`w-full flex items-center rounded-xl text-sm font-medium text-gray-500 hover:bg-black/[0.04] hover:text-black transition-all flex-shrink-0 ${(isCollapsed && !isMobile) ? 'justify-center p-2.5' : 'justify-between px-3 py-2.5'}`}>
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  <Route className="w-4 h-4 flex-shrink-0" />
-                  <span className={`transition-all duration-300 whitespace-nowrap ${(isCollapsed && !isMobile) ? 'opacity-0 scale-95 w-0 pointer-events-none hidden' : 'opacity-100 scale-100 inline-block'}`}>Gestion Réseau</span>
-                </div>
-                {(!isCollapsed || isMobile) && (openMenus.reseau ? <ChevronUp className="w-3.5 h-3.5 flex-shrink-0 transition-transform duration-200" /> : <ChevronDown className="w-3.5 h-3.5 flex-shrink-0 transition-transform duration-200" />)}
-              </button>
-              <AnimatePresence initial={false}>
-                {openMenus.reseau && (!isCollapsed || isMobile) && (
-                  <motion.div variants={dropdownVariants} initial="hidden" animate="visible" exit="hidden" className="pl-10 flex flex-col gap-1 overflow-hidden border-l border-gray-100 ml-5">
-                    <Link to="/dashboard" onClick={handleNavigation} className={`text-xs py-1.5 transition-colors ${isActive('/dashboard') ? 'text-indigo-600 font-semibold' : 'text-gray-500 hover:text-black'}`}>Tableau de Bord</Link>
-                    <Link to="/dashboard/lignes" onClick={handleNavigation} className={`text-xs py-1.5 transition-colors ${isActive('/dashboard/lignes') ? 'text-indigo-600 font-semibold' : 'text-gray-500 hover:text-black'}`}>Lignes & Horaires</Link>
-                    <Link to="/dashboard/arrets" onClick={handleNavigation} className={`text-xs py-1.5 transition-colors ${isActive('/dashboard/arrets') ? 'text-indigo-600 font-semibold' : 'text-gray-500 hover:text-black'}`}>Arrêts de Bus</Link>
-                    <Link to="/dashboard/vehicules" onClick={handleNavigation} className={`text-xs py-1.5 transition-colors ${isActive('/dashboard/vehicules') ? 'text-indigo-600 font-semibold' : 'text-gray-500 hover:text-black'}`}>Flotte Véhicules</Link>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+            {/* Gestion Réseau — visible pour admin et operateur uniquement */}
+            {showGestionReseau && (
+              <div className="flex flex-col">
+                <button onClick={() => toggleMenu('reseau')} className={`w-full flex items-center rounded-xl text-sm font-medium text-gray-500 hover:bg-black/[0.04] hover:text-black transition-all flex-shrink-0 ${(isCollapsed && !isMobile) ? 'justify-center p-2.5' : 'justify-between px-3 py-2.5'}`}>
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <Route className="w-4 h-4 flex-shrink-0" />
+                    <span className={`transition-all duration-300 whitespace-nowrap ${(isCollapsed && !isMobile) ? 'opacity-0 scale-95 w-0 pointer-events-none hidden' : 'opacity-100 scale-100 inline-block'}`}>Gestion Réseau</span>
+                  </div>
+                  {(!isCollapsed || isMobile) && (openMenus.reseau ? <ChevronUp className="w-3.5 h-3.5 flex-shrink-0 transition-transform duration-200" /> : <ChevronDown className="w-3.5 h-3.5 flex-shrink-0 transition-transform duration-200" />)}
+                </button>
+                <AnimatePresence initial={false}>
+                  {openMenus.reseau && (!isCollapsed || isMobile) && (
+                    <motion.div variants={dropdownVariants} initial="hidden" animate="visible" exit="hidden" className="pl-10 flex flex-col gap-1 overflow-hidden border-l border-gray-100 ml-5">
+                      <Link to="/dashboard" onClick={handleNavigation} className={`text-xs py-1.5 transition-colors ${isActive('/dashboard') ? 'text-indigo-600 font-semibold' : 'text-gray-500 hover:text-black'}`}>Tableau de Bord</Link>
+                      <Link to="/dashboard/vehicules" onClick={handleNavigation} className={`text-xs py-1.5 transition-colors ${isActive('/dashboard/vehicules') ? 'text-indigo-600 font-semibold' : 'text-gray-500 hover:text-black'}`}>Flotte Véhicules</Link>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
 
             <Link to="/dashboard/alert_trafic" onClick={handleNavigation} className={`flex items-center rounded-xl text-sm font-medium transition-all flex-shrink-0 ${isActive('/dashboard/alert_trafic') ? 'bg-indigo-50 text-indigo-600 shadow-sm shadow-indigo-100/50' : 'text-gray-500 hover:bg-black/[0.04] hover:text-black'} ${(isCollapsed && !isMobile) ? 'justify-center p-2.5' : 'justify-between px-3 py-2.5'} ${isMobile ? 'md:flex' : ''}`}>
               <div className="flex items-center gap-3 flex-shrink-0">
@@ -218,18 +285,6 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
             <Download className="w-4 h-4 flex-shrink-0" />
             <span className={`transition-all duration-300 whitespace-nowrap ${(isCollapsed && !isMobile) ? 'opacity-0 scale-95 w-0 pointer-events-none hidden' : 'opacity-100 scale-100 inline-block'}`}>Télécharger app</span>
           </button>
-
-          <div className={`flex items-center rounded-xl text-sm font-medium text-gray-500 ${(isCollapsed && !isMobile) ? 'justify-center p-2.5' : 'justify-between px-3 py-2'}`}>
-            <div className="flex items-center gap-3 flex-shrink-0">
-              <Moon className="w-4 h-4 flex-shrink-0" />
-              <span className={`transition-all duration-300 whitespace-nowrap ${(isCollapsed && !isMobile) ? 'opacity-0 scale-95 w-0 pointer-events-none hidden' : 'opacity-100 scale-100 inline-block'}`}>Mode Sombre</span>
-            </div>
-            {(!isCollapsed || isMobile) && (
-              <button onClick={() => setIsDarkMode(!isDarkMode)} className={`w-8 h-5 rounded-full p-0.5 transition-colors duration-200 flex items-center flex-shrink-0 ${isDarkMode ? 'bg-indigo-600' : 'bg-gray-200'}`}>
-                <motion.div layout className="w-4 h-4 bg-white rounded-full shadow-sm" transition={{ type: "spring", stiffness: 500, damping: 30 }} />
-              </button>
-            )}
-          </div>
 
           <Link to="/dashboard/configuration" onClick={handleNavigation} className={`flex items-center gap-3 rounded-xl text-sm font-medium transition-all flex-shrink-0 ${isActive('/dashboard/configuration') ? 'bg-indigo-50 text-indigo-600 shadow-sm shadow-indigo-100/50' : 'text-gray-500 hover:bg-black/[0.04] hover:text-black'} ${(isCollapsed && !isMobile) ? 'justify-center p-2.5' : 'px-3 py-2'}`}>
             <Settings className="w-4 h-4 flex-shrink-0" />

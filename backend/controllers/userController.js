@@ -27,6 +27,61 @@ const query = promisify(db.query).bind(db);
             res.status(500).json({ error: "Erreur serveur interne." });
         }
     };
+
+function normalizeRole(role) {
+    const raw = String(role || "").trim().toLowerCase();
+    if (raw === "admin" || raw === "administrateur") return "administrateur";
+    if (raw === "operateur" || raw === "opérateur") return "opérateur";
+    return "utilisateur";
+}
+
+exports.getUsers = async (req, res) => {
+    try {
+        const sql = `SELECT id, nom_complet, email, role FROM users`;
+        const results = await query(sql);
+
+        const mapped = results.map(user => {
+            const fullName = user.nom_complet || "";
+            const [prenom, ...rest] = fullName.split(" ");
+            return {
+                id: user.id,
+                prenom: prenom || "",
+                nom: rest.join(" ") || "",
+                email: user.email,
+                role: normalizeRole(user.role),
+                coop: "Indéfini",
+                statut: "actif",
+                date: "N/A",
+                activite: "N/A",
+            };
+        });
+
+        res.status(200).json(mapped);
+    } catch (err) {
+        console.error("Erreur lors de la récupération de la liste des utilisateurs :", err);
+        res.status(500).json({ error: "Erreur serveur interne." });
+    }
+};
+
+exports.deleteUser = async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const sql = "DELETE FROM users WHERE id = ?";
+        db.query(sql, [userId], (err, result) => {
+            if (err) {
+                console.error("Erreur suppression utilisateur :", err);
+                return res.status(500).json({ error: "Erreur lors de la suppression de l'utilisateur." });
+            }
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ error: "Utilisateur non trouvé." });
+            }
+            res.json({ message: "Utilisateur supprimé avec succès." });
+        });
+    } catch (err) {
+        console.error("Erreur serveur :", err);
+        res.status(500).json({ error: "Erreur serveur interne." });
+    }
+};
 exports.uploadAvatar = (req, res) => {
     if (!req.file) return res.status(400).json({ error: "Pas de fichier" });
 
@@ -49,21 +104,23 @@ exports.uploadAvatar = (req, res) => {
 exports.updateUser = async (req, res) => {
     try {
         const userId = req.params.id;
-        const { nom_complet, email, telephone, pays, ville, code_postal, identifiant_fiscal } = req.body;
+        const { nom_complet, email, role } = req.body;
 
         const sql = `UPDATE users SET 
-                     nom_complet = ?, email = ?, telephone = ?, 
-                     pays = ?, ville = ?, code_postal = ?, identifiant_fiscal = ? 
+                     nom_complet = ?, email = ?, role = ? 
                      WHERE id = ?`;
 
-        db.query(sql, [nom_complet, email, telephone, pays, ville, code_postal, identifiant_fiscal, userId], (err, result) => {
+        db.query(sql, [nom_complet, email, normalizeRole(role), userId], (err, result) => {
             if (err) {
-                // Si l'email est déjà utilisé par un autre compte, on gère l'erreur ici
                 if (err.code === 'ER_DUP_ENTRY') {
                     return res.status(400).json({ error: "Cet email est déjà utilisé par un autre compte." });
                 }
                 console.error("Erreur exécution SQL :", err);
                 return res.status(500).json({ error: "Erreur lors de la mise à jour." });
+            }
+
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ error: "Utilisateur non trouvé." });
             }
 
             res.json({ message: "Profil mis à jour avec succès !" });

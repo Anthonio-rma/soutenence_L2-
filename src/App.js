@@ -6,10 +6,11 @@ import './App.css';
 import LandingPage from './pages/Landing_Page';
 import LoginRegisterPage from './pages/login_et_registe_page';
 import MainLayout from './layouts/MainLayout';
-import PageUtilisateur from './pages/page_utilisateur';
+import PageUtilisateur from './pages/Administrateur/dashboard_admin';
 import PageAlert from './pages/alerte_trafic';
 import Pageconfig from './pages/configuration';
 import SuiviGps from './pages/suivi_gps';
+import G_utilisateur from './pages/Administrateur/G_utilisaeur';
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
           <Route path="carte-temps-reel" element={<SuiviGps />} />
           <Route path="alert_trafic" element={<PageAlert />} />
           <Route path="configuration" element={<Pageconfig />} />
+          <Route path="gestion_utilisataeur" element={<G_utilisateur />} />
           
           {/* Autres sections */}
           <Route path="lignes" element={<div className="p-4">Lignes & Horaires</div>} />

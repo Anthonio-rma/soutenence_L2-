@@ -158,8 +158,8 @@ export default function PublicTransportInterface() {
         
         <nav className="hidden md:flex items-center gap-8 text-sm font-normal text-white/80">
           <a href="#home" className="hover:text-white transition-colors">Home</a>
-          <a href="#about" className="hover:text-white transition-colors flex items-center gap-1">A propos <span className="text-[10px] opacity-70">▼</span></a>
-          <a href="#objectives" className="hover:text-white transition-colors flex items-center gap-1">Objectif <span className="text-[10px] opacity-70">▼</span></a>
+          <a href="#about" className="hover:text-white transition-colors flex items-center gap-1">A propos</a>
+          <a href="#objectives" className="hover:text-white transition-colors flex items-center gap-1">Objectif</a>
           <a href="#contact" className="hover:text-white transition-colors">Messager Rapide</a>
         </nav>
         
