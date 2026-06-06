@@ -116,10 +116,9 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
   const adminSubMenus = [
     { to: '/dashboard/admin/lignes', label: 'Tableau de Bord' },
     { to: '/dashboard/gestion_utilisataeur', label: 'Gestion Utilisateurs' },
-    { to: '/dashboard/admin/lignes', label: 'Lignes de Transport' },
+    { to: '/dashboard/lignes_transport', label: 'Lignes de Transport' },
     { to: '/dashboard/admin/vehicules-supervision', label: 'Supervision Véhicules' },
     { to: '/dashboard/admin/gps', label: 'Contrôle Données GPS' },
-    { to: '/dashboard/admin/maintenance', label: 'Maintenance Système' },
   ];
 
   return (

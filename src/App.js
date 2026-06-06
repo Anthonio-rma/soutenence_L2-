@@ -11,6 +11,7 @@ import PageAlert from './pages/alerte_trafic';
 import Pageconfig from './pages/configuration';
 import SuiviGps from './pages/suivi_gps';
 import G_utilisateur from './pages/Administrateur/G_utilisaeur';
+import LigneTransportPage from './pages/Administrateur/ligne_transport';
 
 function App() {
   return (
@@ -32,7 +33,8 @@ function App() {
           <Route path="alert_trafic" element={<PageAlert />} />
           <Route path="configuration" element={<Pageconfig />} />
           <Route path="gestion_utilisataeur" element={<G_utilisateur />} />
-          
+          <Route path="lignes_transport" element={<LigneTransportPage />} />
+
           {/* Autres sections */}
           <Route path="lignes" element={<div className="p-4">Lignes & Horaires</div>} />
           <Route path="arrets" element={<div className="p-4">Arrêts de Bus</div>} />

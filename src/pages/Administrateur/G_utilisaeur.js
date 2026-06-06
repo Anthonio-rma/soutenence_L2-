@@ -59,10 +59,40 @@ function normalizeRole(role) {
   return "utilisateur";
 }
 
+function parseDateValue(value) {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatFrenchDate(value) {
+  const date = parseDateValue(value);
+  if (!date) return null;
+  return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
+}
+
+function formatRelativeActivity(value) {
+  const date = parseDateValue(value);
+  if (!date) return null;
+  const diffMs = Date.now() - date.getTime();
+  const minutes = Math.round(diffMs / 60000);
+  const hours = Math.round(diffMs / 3600000);
+  const days = Math.round(diffMs / 86400000);
+
+  if (minutes < 1) return 'Il y a quelques secondes';
+  if (minutes < 60) return `Il y a ${minutes} min`;
+  if (hours < 24) return `Il y a ${hours} h`;
+  if (days < 7) return `Il y a ${days} j`;
+  return `Il y a ${days} j`;
+}
+
 function normalizeUser(user) {
   const fullName = user.nom_complet || `${user.prenom ?? ""} ${user.nom ?? ""}`.trim();
   const [prenom, ...rest] = fullName.split(" ");
   const roleKey = normalizeRole(user.role);
+  const createdAt = user.date ?? user.created_at ?? user.createdAt ?? user.date_inscription ?? user.inscrit_le;
+  const lastActivity = user.activite ?? user.last_login ?? user.updated_at ?? user.updatedAt ?? user.dernier_login ?? user.activity;
+
   return {
     ...user,
     prenom: user.prenom ?? prenom ?? "",
@@ -70,8 +100,8 @@ function normalizeUser(user) {
     role: roleKey,
     coop: user.coop ?? "Indéfini",
     statut: user.statut ?? "actif",
-    date: user.date ?? "N/A",
-    activite: user.activite ?? "N/A",
+    date: user.date ?? formatFrenchDate(createdAt) ?? "N/A",
+    activite: user.activite ?? formatRelativeActivity(lastActivity) ?? "N/A",
     color: user.color ?? ROLE_COLOR[roleKey].color,
     bg: user.bg ?? ROLE_COLOR[roleKey].bg,
   };
@@ -505,8 +535,8 @@ export default function PageUtilisateurs() {
             </p>
           </div>
 
-          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-            <div style={{ position:"relative" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", justifyContent:"flex-end" }}>
+            <div style={{ position:"relative", flex: "1 1 220px", minWidth: 0, maxWidth: 280 }}>
               <Search size={16} style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", color:"#9ca3af" }} />
               <input
                 type="text"
@@ -516,7 +546,7 @@ export default function PageUtilisateurs() {
                 style={{
                   paddingLeft: 34, paddingRight: 12, paddingTop: 8, paddingBottom: 8,
                   fontSize: 12, borderRadius: 10, border: "1px solid #e5e7eb",
-                  background: "#fff", color: "#111", width: 230,
+                  background: "#fff", color: "#111", width: "100%", maxWidth: 280,
                   outline: "none", fontFamily: "inherit",
                 }}
               />
@@ -548,7 +578,7 @@ export default function PageUtilisateurs() {
         </motion.div>
 
         {/* ── MÉTRIQUES ── */}
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(4, minmax(0,1fr))", gap:12 }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(180px,1fr))", gap:12 }}>
           {[
             { label:"Total utilisateurs",  value:users.length, badge:"+14 ce mois", bColor:"#10b981", bBg:"#ecfdf5", bar:82, barC:"#10b981" },
             { label:"Administrateurs",      value:totalAdmins,  badge:`${((totalAdmins/users.length)*100).toFixed(1)}%`, bColor:"#7c3aed", bBg:"#f5f3ff", bar:Math.round((totalAdmins/users.length)*100), barC:"#7c3aed" },
@@ -613,7 +643,7 @@ export default function PageUtilisateurs() {
 
           {/* Table */}
           <div style={{ overflowX:"auto" }}>
-            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+            <table style={{ width:"100%", minWidth:720, borderCollapse:"collapse", fontSize:12 }}>
               <thead>
                 <tr style={{ borderBottom:"1px solid #f1f0f0" }}>
                   {["Utilisateur","Rôle","Coopérative","Statut","Inscrit le","Activité","Actions"].map(h => (
