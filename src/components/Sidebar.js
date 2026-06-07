@@ -202,7 +202,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
                   <div className="flex items-center gap-3 flex-shrink-0">
                     <LayoutDashboard className="w-4 h-4 flex-shrink-0" />
                     <span className={`transition-all duration-300 whitespace-nowrap ${(isCollapsed && !isMobile) ? 'opacity-0 scale-95 w-0 pointer-events-none hidden' : 'opacity-100 scale-100 inline-block'}`}>
-                      Vue d'ensemble
+                      Administrateur
                     </span>
                   </div>
                   {(!isCollapsed || isMobile) && (

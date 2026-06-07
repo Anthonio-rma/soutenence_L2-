@@ -13,6 +13,7 @@ const fs = require('fs');
 const userController = require('./controllers/userController');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
+const busController = require('./controllers/busController');
 const busRoutes = require('./routes/busRoutes'); // Ajout des routes bus
 
 
@@ -63,6 +64,11 @@ app.use('/api/auth', authRoutes);
 app.use('/api', userRoutes);
 app.use('/api/bus', busRoutes); // Intégration des routes bus
 
+// Alias pour conserver la compatibilité avec /api/lignes
+app.get('/api/lignes', busController.getRoutes);
+app.get('/api/lignes/:id', busController.getRouteById);
+app.put('/api/lignes/:id', busController.updateRoute);
+app.delete('/api/lignes/:id', busController.deleteRoute);
 
 // Route spécifique pour l'upload d'avatar
 app.post('/api/users/:id/avatar', upload.single('avatar'), userController.uploadAvatar);
